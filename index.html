@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Plagiarism Detector</title>
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #eef2f3, #dfe9f3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+
+    .container {
+        background: white;
+        padding: 30px;
+        width: 700px;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        animation: fadeIn 0.8s ease-in-out;
+    }
+
+    h1 {
+        margin-bottom: 5px;
+        color: #2c3e50;
+    }
+
+    .dynamic-text {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 20px;
+        height: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 120px;
+        margin-bottom: 15px;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        resize: none;
+        font-size: 14px;
+    }
+
+    button {
+        background: #16a085;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    button:hover {
+        background: #138d75;
+        transform: scale(1.03);
+    }
+
+    .result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: bold;
+        display: none;
+    }
+
+    .success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .danger {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    @keyframes fadeIn {
+        from {opacity: 0; transform: translateY(10px);}
+        to {opacity: 1; transform: translateY(0);}
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h1>🧠 Plagiarism Detector</h1>
+    <div class="dynamic-text" id="dynamicText"></div>
+
+    <textarea id="text1" placeholder="Enter original text..."></textarea>
+    <textarea id="text2" placeholder="Enter suspected text..."></textarea>
+
+    <button onclick="checkPlagiarism()">Detect Now</button>
+
+    <div id="resultBox" class="result"></div>
+</div>
+
+<script>
+const messages = [
+    "Analyzing meaning, not just words...",
+    "Detect hidden similarities...",
+    "Compare ideas, not sentences...",
+    "AI is checking for duplication...",
+    "Smart detection in progress..."
+];
+
+let i = 0;
+setInterval(() => {
+    document.getElementById("dynamicText").innerText = messages[i];
+    i = (i + 1) % messages.length;
+}, 2000);
+
+async function checkPlagiarism() {
+    const text1 = document.getElementById("text1").value;
+    const text2 = document.getElementById("text2").value;
+    const resultBox = document.getElementById("resultBox");
+
+    if (!text1 || !text2) {
+        alert("Please enter both texts");
+        return;
+    }
+
+    resultBox.style.display = "block";
+    resultBox.innerText = "⏳ Analyzing...";
+    resultBox.className = "result";
+
+    try {
+        const response = await fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text1, text2 })
+        });
+
+        const data = await response.json();
+
+        resultBox.innerText = data.result;
+
+        if (data.result.includes("No")) {
+            resultBox.classList.add("success");
+        } else {
+            resultBox.classList.add("danger");
+        }
+
+    } catch (error) {
+        resultBox.innerText = "Error connecting to server";
+        resultBox.classList.add("danger");
+    }
+}
+</script>
+
+</body>
+</html>
