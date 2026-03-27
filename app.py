@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pickle
 import shutil
 from pathlib import Path
@@ -158,6 +159,12 @@ def home() -> Any:
     return send_from_directory(BASE_DIR, "index.html")
 
 
+@app.get("/health")
+def health() -> Any:
+    """Simple health check endpoint for hosting platforms."""
+    return jsonify({"status": "ok"})
+
+
 @app.post("/predict")
 def predict() -> Any:
     """Predict plagiarism from two text inputs."""
@@ -215,4 +222,6 @@ def upload_pdf() -> Any:
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.run(host="0.0.0.0", port=port, debug=debug)
