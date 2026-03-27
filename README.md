@@ -4,6 +4,8 @@ Flask-based plagiarism checker with two modes:
 - Text vs text comparison
 - PDF vs PDF comparison (with OCR fallback for scanned PDFs)
 
+Detection uses TF-IDF cosine similarity with a configurable threshold (default 0.6).
+
 ## Project Files
 
 - app.py: Flask backend and inference API

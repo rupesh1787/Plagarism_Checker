@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import pickle
+import string
 import shutil
 from pathlib import Path
 from typing import Any
@@ -13,10 +14,12 @@ from PyPDF2 import PdfReader
 import pdfplumber
 import pypdfium2 as pdfium
 import pytesseract
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+from sklearn.metrics.pairwise import cosine_similarity
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "model.pkl"
 VECTORIZER_PATH = BASE_DIR / "tfidf_vectorizer.pkl"
+DEFAULT_THRESHOLD = float(os.environ.get("PLAGIARISM_THRESHOLD", "0.6"))
 
 
 def load_pickle_file(file_path: Path) -> Any:
@@ -28,8 +31,6 @@ def load_pickle_file(file_path: Path) -> Any:
         return pickle.load(f)
 
 
-# Load artifacts once at startup for fast inference.
-model = load_pickle_file(MODEL_PATH)
 vectorizer = load_pickle_file(VECTORIZER_PATH)
 
 app = Flask(__name__, static_folder=".")
@@ -49,12 +50,23 @@ def get_tesseract_executable() -> str:
     return ""
 
 
-def run_prediction(text1: str, text2: str) -> str:
-    """Run model prediction using the exact training-time text combination."""
-    combined = text1 + " " + text2
-    features = vectorizer.transform([combined])
-    prediction = model.predict(features)[0]
-    return "Plagiarism Detected" if int(prediction) == 1 else "No Plagiarism"
+def clean_text(text: str) -> str:
+    """Normalize text before vectorization."""
+    normalized = str(text).lower().translate(str.maketrans("", "", string.punctuation))
+    return " ".join(word for word in normalized.split() if word not in ENGLISH_STOP_WORDS)
+
+
+def run_prediction(text1: str, text2: str, threshold: float = DEFAULT_THRESHOLD) -> str:
+    """Compute plagiarism score using TF-IDF cosine similarity."""
+    cleaned1 = clean_text(text1)
+    cleaned2 = clean_text(text2)
+
+    vec1 = vectorizer.transform([cleaned1])
+    vec2 = vectorizer.transform([cleaned2])
+    score = float(cosine_similarity(vec1, vec2)[0][0])
+
+    label = "Plagiarism Detected" if score > threshold else "No Plagiarism"
+    return f"{label} ({round(score * 100, 2)}%)"
 
 
 def validate_pdf_file(uploaded_file: Any, field_name: str) -> str | None:
@@ -179,7 +191,16 @@ def predict() -> Any:
         if not text1 or not text2:
             return jsonify({"error": "Both text1 and text2 are required and cannot be empty."}), 400
 
-        result = run_prediction(text1, text2)
+        threshold = payload.get("threshold", DEFAULT_THRESHOLD)
+        try:
+            threshold_value = float(threshold)
+        except (TypeError, ValueError):
+            return jsonify({"error": "threshold must be a valid number."}), 400
+
+        if threshold_value < 0 or threshold_value > 1:
+            return jsonify({"error": "threshold must be between 0 and 1."}), 400
+
+        result = run_prediction(text1, text2, threshold=threshold_value)
         return jsonify({"result": result})
 
     except Exception as exc:
